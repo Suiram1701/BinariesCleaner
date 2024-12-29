@@ -12,7 +12,7 @@ internal class Program
         }
 
         int removedFolders = RemoveRecursively(directory);
-        PrintSuccess($"Finished. {removedFolders} folders successfully removed");
+        PrintSuccess($"Finished. {removedFolders} folders containing binaries successfully removed");
 
         Console.ReadKey();
     }
@@ -41,6 +41,8 @@ internal class Program
                 Directory.Delete(binPath, recursive: true);
                 Console.WriteLine($"Removed '{binPath}'");
             }
+
+            Console.WriteLine("---------------------------------------------------------------------------");
         }
 
         foreach (string subDirectory in Directory.GetDirectories(directory))
