@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BinariesCleaner": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\mariu\\source\\repos\\GrpcDemo"
+    }
+  }
+}

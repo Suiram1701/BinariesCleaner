@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35617.110
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BinariesCleaner", "BinariesCleaner.csproj", "{2768F2CD-5121-440E-89AA-0FE448A2E8D6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2768F2CD-5121-440E-89AA-0FE448A2E8D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2768F2CD-5121-440E-89AA-0FE448A2E8D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2768F2CD-5121-440E-89AA-0FE448A2E8D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2768F2CD-5121-440E-89AA-0FE448A2E8D6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {718A745F-D18D-4393-A235-576223F3E426}
+	EndGlobalSection
+EndGlobal
