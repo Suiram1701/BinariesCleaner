@@ -1,9 +1,10 @@
 # BinariesCleaner
-This is a simple tool to cleanup binaries generated on .NET builds. It searches recursivly for ``.csproj`` files and deletes the folder ``obj`` and ``bin`` that are in the same directory. Those removed folders contains files generated on each build.
+This is a simple tool to cleanup binaries generated on .NET builds. It searches recursivly for ``.csproj`` files and deletes the folder ``obj`` and ``bin`` that are in the same directory. Those removed folders contains files generated on each build. 
+The tool also removes ``node_modules`` if ``package.json`` exists. ``node_modules`` doesn't contain binaries which contradicts the name BinariesCleaner but if you're have NPM packages installed in an ASP.NET project this is also may helpful to reduce the size.
 
 ## How to use it
 Place the executable file inside the directory of you choice and run it. If you doesn't want to move the executable there you can also specify the directory where it should work with the first argument. 
-On its execution it will recursivly removes folders named ``obj`` and ``bin`` that are in the same directory with a ``.csproj`` file beginning from its working directory (specified using the first argument or the directory of the executable by default).
+On its execution it will recursivly removes folders named ``obj`` and ``bin`` that are in the same directory with a ``.csproj`` file and removes ``node_modules`` if ``package.json`` is found. The removing starts from the working directory (specified using the first argument or the directory of the executable by default).
 
 If you run this while you've openned a project affected by this tool in Visual Studio VS could start to act a bit weird for example global using aren't found anymore. 
 You can fix this by rebuild the project or reopen the project.
