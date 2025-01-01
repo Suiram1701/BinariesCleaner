@@ -21,26 +21,30 @@ internal class Program
     {
         int removedFolders = 0;
 
-        string? projectFile = Directory.GetFiles(directory).FirstOrDefault(file => file.EndsWith(".csproj"));
+        string? projectFile = Directory.EnumerateFiles(directory).FirstOrDefault(file => file.EndsWith(".csproj"));
         if (!string.IsNullOrEmpty(projectFile))
         {
             PrintSuccess($"Project file found '{projectFile}'");
 
             string objPath = Path.Combine(directory, "obj");
-            if (Directory.Exists(objPath))
-            {
+            if (TryRemoveDirectory(objPath))
                 removedFolders++;
-                Directory.Delete(objPath, recursive: true);
-                Console.WriteLine($"Removed '{objPath}'");
-            }
-
+            
             string binPath = Path.Combine(directory, "bin");
-            if (Directory.Exists(binPath))
-            {
+            if (TryRemoveDirectory(binPath))
                 removedFolders++;
-                Directory.Delete(binPath, recursive: true);
-                Console.WriteLine($"Removed '{binPath}'");
-            }
+
+            Console.WriteLine("---------------------------------------------------------------------------");
+        }
+
+        string? packageFile = Directory.EnumerateFiles(directory).FirstOrDefault(file => Path.GetFileName(file) == "package.json");
+        if (!string.IsNullOrEmpty(packageFile))
+        {
+            PrintSuccess($"Package file found '{packageFile}'");
+
+            string modulesPath = Path.Combine(directory, "node_modules");
+            if (TryRemoveDirectory(modulesPath))
+                removedFolders++;
 
             Console.WriteLine("---------------------------------------------------------------------------");
         }
@@ -50,6 +54,18 @@ internal class Program
             removedFolders += RemoveRecursively(subDirectory);
         }
         return removedFolders;
+    }
+
+    private static bool TryRemoveDirectory(string directory)
+    {
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+            Console.WriteLine($"Removed '{directory}'");
+
+            return true;
+        }
+        return false;
     }
 
     private static void PrintSuccess(string message)
