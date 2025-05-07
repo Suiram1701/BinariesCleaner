@@ -1,71 +1,88 @@
-﻿namespace BinariesCleaner;
+﻿using System.CommandLine;
+using System.CommandLine.Parsing;
+
+namespace BinariesCleaner;
 
 internal class Program
 {
-    static void Main(string[] args)
+    static int Main(string[] args)
     {
-        string directory = args.FirstOrDefault(Environment.CurrentDirectory);
-        if (!Directory.Exists(directory))
-        {
-            PrintError($"Unable to find target directory '{directory}'");
-            return;
-        }
+        Argument<DirectoryInfo> dirArgument = new(
+            name: "Directory",
+            description: "The root directory to start from with the clean up process. By default the working directory will be used.",
+            getDefaultValue: () => new(Environment.CurrentDirectory));
 
-        int removedFolders = RemoveRecursively(directory);
-        PrintSuccess($"Finished. {removedFolders} folders containing binaries successfully removed");
+        RootCommand root = new(description: "Cleans up binaries from .NET projects.");
+        root.AddArgument(dirArgument);
+        root.SetHandler(HandleRoot, dirArgument);
 
-        Console.ReadKey();
+        return root.Invoke(args);
     }
 
-    private static int RemoveRecursively(string directory)
+    private static void HandleRoot(DirectoryInfo directory)
     {
         int removedFolders = 0;
+        long removedBytes = 0;
 
-        string? projectFile = Directory.EnumerateFiles(directory).FirstOrDefault(file => file.EndsWith(".csproj"));
-        if (!string.IsNullOrEmpty(projectFile))
+        // .NET projects
+        foreach (FileInfo projectFile in directory.EnumerateFiles("*.csproj", SearchOption.AllDirectories))
         {
             PrintSuccess($"Project file found '{projectFile}'");
 
-            string objPath = Path.Combine(directory, "obj");
-            if (TryRemoveDirectory(objPath))
-                removedFolders++;
-            
-            string binPath = Path.Combine(directory, "bin");
-            if (TryRemoveDirectory(binPath))
-                removedFolders++;
+            try
+            {
+                DirectoryInfo? objDir = TryGetDirectory(projectFile.Directory!, "obj");
+                DirectoryInfo? binDir = TryGetDirectory(projectFile.Directory!, "bin"); 
+                if (!((objDir?.Exists ?? false) || (binDir?.Exists ?? false)))
+                {
+                    Console.WriteLine("Skipped: No binaries to remove.");
+                    continue;
+                }
+
+                long size = GetDirectorySize(objDir) + GetDirectorySize(binDir);
+                if (AskQuestion($"Should the binaries of project \"{projectFile}\" be removed (size {size / 1000} Kb)?"))
+                {
+                    removedFolders += TryRemoveDirectory(objDir);
+                    removedFolders += TryRemoveDirectory(binDir);
+                    removedBytes += size;
+                }
+            }
+            catch (Exception ex)
+            {
+                PrintError($"An error occurred while removing the binaries of \"{projectFile}\"!:\n{ex}");
+            }
 
             Console.WriteLine("---------------------------------------------------------------------------");
         }
 
-        string? packageFile = Directory.EnumerateFiles(directory).FirstOrDefault(file => Path.GetFileName(file) == "package.json");
-        if (!string.IsNullOrEmpty(packageFile))
+        // node packages
+        foreach (FileInfo packageFile in directory.EnumerateFiles("package.json", SearchOption.AllDirectories))
         {
             PrintSuccess($"Package file found '{packageFile}'");
 
-            string modulesPath = Path.Combine(directory, "node_modules");
-            if (TryRemoveDirectory(modulesPath))
-                removedFolders++;
+            try
+            {
+                DirectoryInfo? modulesDir = TryGetDirectory(packageFile.Directory!, "node_modules");
+                if (!(modulesDir?.Exists ?? false))
+                {
+                    Console.WriteLine("Skipped: No modules to remove.");
+                    continue;
+                }
 
-            Console.WriteLine("---------------------------------------------------------------------------");
+                long size = GetDirectorySize(modulesDir);
+                if (AskQuestion($"Should the module files of package \"{packageFile}\" be removed (size {size / 1000} Kb)?"))
+                {
+                    removedFolders += TryRemoveDirectory(modulesDir);
+                    removedBytes += size;
+                }
+            }
+            catch (Exception ex)
+            {
+                PrintError($"An error occurred while removing the modules of \"{packageFile}\"!:\n{ex}");
+            }
         }
 
-        foreach (string subDirectory in Directory.GetDirectories(directory))
-        {
-            removedFolders += RemoveRecursively(subDirectory);
-        }
-        return removedFolders;
-    }
-
-    private static bool TryRemoveDirectory(string directory)
-    {
-        if (Directory.Exists(directory))
-        {
-            Directory.Delete(directory, recursive: true);
-            Console.WriteLine($"Removed '{directory}'");
-
-            return true;
-        }
-        return false;
+        PrintSuccess($"Finished. {removedFolders} folders containing {removedBytes / 1000} Kb!");
     }
 
     private static void PrintSuccess(string message)
@@ -80,5 +97,49 @@ internal class Program
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine(message);
         Console.ForegroundColor = ConsoleColor.White;
+    }
+
+    private static bool AskQuestion(string question)
+    {
+        Console.Write(question);
+        Console.Write(" [y/n]: ");
+
+        while (true)
+        {
+            string? input = Console.ReadLine();
+            if (input?.Equals("Y", StringComparison.InvariantCultureIgnoreCase) ?? false)
+                return true;
+            else if (input?.Equals("N", StringComparison.InvariantCultureIgnoreCase) ?? false)
+                return false;
+
+            Console.WriteLine("Please input y or n to make the decision!");
+        }
+    }
+
+    private static DirectoryInfo? TryGetDirectory(DirectoryInfo parent, string name)
+    {
+        string dir = Path.Combine(parent.FullName, name);
+        return Directory.Exists(dir)
+            ? new DirectoryInfo(dir)
+            : null;
+    }
+
+    private static long GetDirectorySize(DirectoryInfo? dir)
+    {
+        return dir?
+            .EnumerateFiles("", SearchOption.AllDirectories)
+            .Sum(f => f.Length) ?? 0L;
+    }
+
+    private static int TryRemoveDirectory(DirectoryInfo? dir)
+    {
+        if (dir?.Exists ?? false)
+        {
+            dir.Delete(recursive: true);
+            Console.WriteLine($"Removed '{dir}'");
+            return 1;
+        }
+
+        return 0;
     }
 }
