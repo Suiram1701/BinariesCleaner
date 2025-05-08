@@ -7,6 +7,13 @@ internal class Program
 {
     static int Main(string[] args)
     {
+#if DEBUG
+        Console.Write("Arguments: ");
+        string rawArgs = Console.ReadLine() ?? string.Empty;
+
+        args = Utils.ParseCmdArguments(rawArgs);
+#endif
+
         Argument<DirectoryInfo> dirArgument = new(
             name: "Directory",
             description: "The root directory to start from with the clean up process. By default the working directory will be used.",
@@ -27,7 +34,11 @@ internal class Program
         root.AddOption(skipOption);
         root.SetHandler(HandleRoot, dirArgument, askAllOption, skipOption);
 
-        return root.Invoke(args);
+        int result = root.Invoke(args);
+#if DEBUG
+        Console.ReadKey();
+#endif
+        return result;
     }
 
     private static void HandleRoot(DirectoryInfo directory, bool askAll, string[] skipProjects)
@@ -38,7 +49,7 @@ internal class Program
         // .NET projects
         foreach (FileInfo projectFile in directory.EnumerateFiles("*.csproj", SearchOption.AllDirectories))
         {
-            PrintSuccess($"Project file found '{projectFile}'");
+            Utils.PrintSuccess($"Project file found '{projectFile}'");
             if (skipProjects.Any(f => projectFile.Name == f || projectFile.Name.StartsWith(f)))
             {
                 Console.WriteLine("Skipped: Excluded manuell");
@@ -56,7 +67,7 @@ internal class Program
                 }
 
                 long size = GetDirectorySize(objDir) + GetDirectorySize(binDir);
-                if (!askAll || AskQuestion($"Should the binaries of project \"{projectFile}\" be removed (size {size / 1000} Kb)?"))
+                if (!askAll || Utils.AskQuestion($"Should the binaries of project \"{projectFile}\" be removed (size {size / 1000} Kb)?"))
                 {
                     removedFolders += TryRemoveDirectory(objDir);
                     removedFolders += TryRemoveDirectory(binDir);
@@ -65,7 +76,7 @@ internal class Program
             }
             catch (Exception ex)
             {
-                PrintError($"An error occurred while removing the binaries of \"{projectFile}\"!:\n{ex}");
+                Utils.PrintError($"An error occurred while removing the binaries of \"{projectFile}\"!:\n{ex}");
             }
 
             Console.WriteLine("---------------------------------------------------------------------------");
@@ -74,7 +85,7 @@ internal class Program
         // node packages
         foreach (FileInfo packageFile in directory.EnumerateFiles("package.json", SearchOption.AllDirectories))
         {
-            PrintSuccess($"Package file found '{packageFile}'");
+            Utils.PrintSuccess($"Package file found '{packageFile}'");
             if (skipProjects.Any(f => packageFile.Directory!.Name == f))
             {
                 Console.WriteLine("Skipped: Excluded manuell");
@@ -91,7 +102,7 @@ internal class Program
                 }
 
                 long size = GetDirectorySize(modulesDir);
-                if (!askAll || AskQuestion($"Should the module files of package \"{packageFile}\" be removed (size {size / 1000} Kb)?"))
+                if (!askAll || Utils.AskQuestion($"Should the module files of package \"{packageFile}\" be removed (size {size / 1000} Kb)?"))
                 {
                     removedFolders += TryRemoveDirectory(modulesDir);
                     removedBytes += size;
@@ -99,42 +110,11 @@ internal class Program
             }
             catch (Exception ex)
             {
-                PrintError($"An error occurred while removing the modules of \"{packageFile}\"!:\n{ex}");
+                Utils.PrintError($"An error occurred while removing the modules of \"{packageFile}\"!:\n{ex}");
             }
         }
 
-        PrintSuccess($"Finished. {removedFolders} folders containing {removedBytes / 1000} Kb!");
-    }
-
-    private static void PrintSuccess(string message)
-    {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine(message);
-        Console.ForegroundColor = ConsoleColor.White;
-    }
-
-    private static void PrintError(string message)
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine(message);
-        Console.ForegroundColor = ConsoleColor.White;
-    }
-
-    private static bool AskQuestion(string question)
-    {
-        Console.Write(question);
-        Console.Write(" [y/n]: ");
-
-        while (true)
-        {
-            string? input = Console.ReadLine();
-            if (input?.Equals("Y", StringComparison.InvariantCultureIgnoreCase) ?? false)
-                return true;
-            else if (input?.Equals("N", StringComparison.InvariantCultureIgnoreCase) ?? false)
-                return false;
-
-            Console.WriteLine("Please input y or n to make the decision!");
-        }
+        Utils.PrintSuccess($"Finished. {removedFolders} folders containing {removedBytes / 1000} Kb!");
     }
 
     private static DirectoryInfo? TryGetDirectory(DirectoryInfo parent, string name)
