@@ -12,14 +12,25 @@ internal class Program
             description: "The root directory to start from with the clean up process. By default the working directory will be used.",
             getDefaultValue: () => new(Environment.CurrentDirectory));
 
+        Option<bool> askAllOption = new(
+            aliases: ["--ask-all", "--ask", "-a"],
+            description: "Indicates whether before deleting any projects' binaries the user should be asked.",
+            getDefaultValue: () => false);
+
+        Option<string[]> skipOption = new(
+            aliases: ["--exclude-projects", "--exclude", "-e"],
+            description: "Specifies names of projects/packages which should be skipped automatically. For .NET projects the full name or the name without extension of the project file is used but Node packages use the name of the parent folder.");
+
         RootCommand root = new(description: "Cleans up binaries from .NET projects.");
         root.AddArgument(dirArgument);
-        root.SetHandler(HandleRoot, dirArgument);
+        root.AddOption(askAllOption);
+        root.AddOption(skipOption);
+        root.SetHandler(HandleRoot, dirArgument, askAllOption, skipOption);
 
         return root.Invoke(args);
     }
 
-    private static void HandleRoot(DirectoryInfo directory)
+    private static void HandleRoot(DirectoryInfo directory, bool askAll, string[] skipProjects)
     {
         int removedFolders = 0;
         long removedBytes = 0;
@@ -28,6 +39,11 @@ internal class Program
         foreach (FileInfo projectFile in directory.EnumerateFiles("*.csproj", SearchOption.AllDirectories))
         {
             PrintSuccess($"Project file found '{projectFile}'");
+            if (skipProjects.Any(f => projectFile.Name == f || projectFile.Name.StartsWith(f)))
+            {
+                Console.WriteLine("Skipped: Excluded manuell");
+                continue;
+            }
 
             try
             {
@@ -40,7 +56,7 @@ internal class Program
                 }
 
                 long size = GetDirectorySize(objDir) + GetDirectorySize(binDir);
-                if (AskQuestion($"Should the binaries of project \"{projectFile}\" be removed (size {size / 1000} Kb)?"))
+                if (!askAll || AskQuestion($"Should the binaries of project \"{projectFile}\" be removed (size {size / 1000} Kb)?"))
                 {
                     removedFolders += TryRemoveDirectory(objDir);
                     removedFolders += TryRemoveDirectory(binDir);
@@ -59,6 +75,11 @@ internal class Program
         foreach (FileInfo packageFile in directory.EnumerateFiles("package.json", SearchOption.AllDirectories))
         {
             PrintSuccess($"Package file found '{packageFile}'");
+            if (skipProjects.Any(f => packageFile.Directory!.Name == f))
+            {
+                Console.WriteLine("Skipped: Excluded manuell");
+                continue;
+            }
 
             try
             {
@@ -70,7 +91,7 @@ internal class Program
                 }
 
                 long size = GetDirectorySize(modulesDir);
-                if (AskQuestion($"Should the module files of package \"{packageFile}\" be removed (size {size / 1000} Kb)?"))
+                if (!askAll || AskQuestion($"Should the module files of package \"{packageFile}\" be removed (size {size / 1000} Kb)?"))
                 {
                     removedFolders += TryRemoveDirectory(modulesDir);
                     removedBytes += size;
